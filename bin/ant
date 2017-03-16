@@ -1,0 +1,90 @@
+#!/opt/ruby/bin/ruby
+
+require 'ant'
+require 'optparse'
+
+option_parser = OptionParser.new do |opts|
+  opts.banner = [
+    'Usage: ant [command] <port>',
+    '',
+    '  command:',
+    '    install <port>  安装ant服务(端口号默认为9000)',
+    '    uninstall       卸载ant服务',
+    '    start           启动ant服务',
+    '    stop            停止ant服务',
+    '    restart         重启ant服务',
+    '    agent <port>    启动ant代理(端口号默认为9001)'
+  ].join "\n"
+end
+
+begin
+  option_parser.parse!
+  command, port = option_parser.default_argv
+
+  arg = '%s daemon %s' % [Ant::Mixin::cmdline, port]
+
+  case command
+  when 'install'
+    if OS::name != 'windows'
+      file = File.join Ant::HOME, 'bin/daemon'
+
+      lines = []
+
+      IO.readlines(file).each do |line|
+        line = line.rstrip
+
+        if line =~ /^RUBY_HOME\s*=/
+          line = 'RUBY_HOME=%s' % File.expand_path(File.join(RbConfig::CONFIG['bindir'], '..'))
+        end
+
+        lines << line
+      end
+
+      File.open file, 'w' do |f|
+        f.puts lines
+      end
+    end
+
+    service 'ant_daemon' do |pkg|
+      if OS::name == 'windows'
+        pkg.file File.join(RbConfig::CONFIG['bindir'], 'daemon.exe')
+        pkg.source File.join(Ant::HOME, 'bin/daemon.exe')
+      else
+        pkg.file '/etc/init.d/ant_daemon'
+        pkg.source File.join(Ant::HOME, 'bin/daemon')
+      end
+
+      pkg.enable arg
+    end
+  when 'uninstall'
+    service 'ant_daemon' do |pkg|
+      if OS::name == 'windows'
+        pkg.file File.join(RbConfig::CONFIG['bindir'], 'daemon.exe')
+      else
+        pkg.file '/etc/init.d/ant_daemon'
+      end
+
+      pkg.disable
+    end
+  when 'start'
+    service 'ant_daemon' do |pkg|
+      pkg.start
+    end
+  when 'stop'
+    service 'ant_daemon' do |pkg|
+      pkg.stop
+    end
+  when 'restart'
+    service 'ant_daemon' do |pkg|
+      pkg.restart
+    end
+  when 'daemon'
+    Ant::Mixin::daemon port
+  when 'agent'
+    Ant::Mixin::agent port
+  else
+    raise 'invalid command'
+  end
+rescue
+  LOG_PUTS option_parser.help
+end
