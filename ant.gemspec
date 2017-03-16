@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name                  = 'ant'
-  s.version               = '0.0.1'
+  s.version               = '0.0.2'
   s.authors               = 'jack'
   s.date                  = '2017-03-15'
   s.summary               = 'intelligent agent'
