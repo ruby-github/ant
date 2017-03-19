@@ -33,6 +33,10 @@ class File
 end
 
 class File
+  def self.normalize filename
+    File.join filename.split(/[\/\\]/)
+  end
+
   def self.relative_path filename, dir = nil
     if dir.nil?
       dir = Dir.pwd
@@ -52,17 +56,53 @@ class File
       filename
     end
   end
-
-  def self.normalize filename
-    File.join filename.split(/[\/\\]/)
-  end
 end
 
 class File
+  def self.cmdline filename
+    found = false
+
+    filename.each_byte do |byte|
+      if byte < 127
+        if '-./:@[\]_{}~'.bytes.include? byte
+          next
+        end
+
+        if OS::name == 'windows'
+          if byte == 58
+            next
+          end
+        end
+
+        if byte >= 48 and byte <= 57
+          next
+        end
+
+        if byte >= 65 and byte <= 90
+          next
+        end
+
+        if byte >= 97 and byte <= 122
+          next
+        end
+
+        found = true
+
+        break
+      end
+    end
+
+    if found
+      "%s" % filename.gsub('"', '\"')
+    else
+      filename
+    end
+  end
+
   def self.glob xpath
     list = []
 
-    if exist? xpath
+    if File.exist? xpath
       list << xpath
     else
       if File::FNM_SYSCASE.nonzero?
@@ -104,12 +144,27 @@ class File
     end
   end
 
+  def self.lock filename, mode = 'r+:utf-8'
+    filename = File.expand_path filename
+
+    if not File.file? filename
+      File.open filename, 'w:utf-8' do |file|
+      end
+    end
+
+    File.open filename, mode do |file|
+      file.flock File::LOCK_EX
+
+      yield file
+    end
+  end
+
   def self.paths filename
     filename.locale.split /[\/\\]/
   end
 
-  def root filename
-    filename = expand_path filename
+  def self.root filename
+    filename = File.expand_path filename
 
     if filename =~ /^(\w+:\/\/+[^\/\\]+)[\/\\]/
       if File::FNM_SYSCASE.nonzero?
@@ -119,7 +174,7 @@ class File
       end
     else
       loop do
-        dir, name = split filename
+        dir, name = File.split filename
 
         if dir == '.'
           if not filename.start_with? './'
@@ -144,53 +199,13 @@ class File
     end
   end
 
-  def self.cmdline filename
-    found = false
-
-    filename.each_byte do |byte|
-      if byte < 127
-        if '-./:@[\]_{}~'.bytes.include? byte
-          next
-        end
-
-        if OS::name == 'windows'
-          if byte == 58
-            next
-          end
-        end
-
-        if byte >= 48 and byte <= 57
-          next
-        end
-
-        if byte >= 65 and byte <= 90
-          next
-        end
-
-        if byte >= 97 and byte <= 122
-          next
-        end
-
-        found = true
-
-        break
-      end
-    end
-
-    if found
-      "%s" % filename.gsub('"', '\"')
-    else
-      filename
-    end
-  end
-
   def self.include? dirname, file
     if File::FNM_SYSCASE.nonzero?
-      dirname = expand_path(dirname).downcase
-      file = expand_path(file).downcase
+      dirname = File.expand_path(dirname).downcase
+      file = File.expand_path(file).downcase
     else
-      dirname = expand_path dirname
-      file = expand_path file
+      dirname = File.expand_path dirname
+      file = File.expand_path file
     end
 
     dirname == file or file.start_with? dirname + File::SEPARATOR
@@ -198,11 +213,11 @@ class File
 
   def self.same_path? filename, other_filename
     if File::FNM_SYSCASE.nonzero?
-      filename = expand_path(filename).downcase
-      other_filename = expand_path(other_filename).downcase
+      filename = File.expand_path(filename).downcase
+      other_filename = File.expand_path(other_filename).downcase
     else
-      filename = expand_path filename
-      other_filename = expand_path other_filename
+      filename = File.expand_path filename
+      other_filename = File.expand_path other_filename
     end
 
     filename == other_filename
@@ -260,7 +275,7 @@ class File
     source = source.locale
     dest = dest.locale
 
-    if not mkdir dirname(dest)
+    if not File.mkdir dirname(dest)
       return false
     end
 
@@ -273,7 +288,7 @@ class File
         FileUtils.copy_file source, dest, false
 
         if preserve
-          utime atime(source), mtime(source), dest
+          File.utime File.atime(source), File.mtime(source), dest
         end
       rescue
         LOG_EXCEPTION $!
@@ -286,8 +301,8 @@ class File
   def self.delete_file file
     FileUtils.rm_rf file.locale
 
-    if exist? file
-      LOG_ERROR 'no delete file - %s' % file
+    if File.exist? file
+      LOG_ERROR 'no delete file: %s' % file
 
       false
     else

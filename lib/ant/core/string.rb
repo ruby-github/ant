@@ -150,4 +150,29 @@ class String
       self
     end
   end
+
+  def wrap size = 79
+    lines = []
+
+    line = ''
+
+    each_char do |c|
+      if line.bytesize + c.bytesize > size
+        lines << line
+        line = nil
+      end
+
+      if line.nil?
+        line = c
+      else
+        line << c
+      end
+    end
+
+    if not line.nil?
+      lines << line
+    end
+
+    lines
+  end
 end
