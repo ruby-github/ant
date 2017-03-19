@@ -177,8 +177,14 @@ module Provide
       end
     end
 
-    def puts_errors
-      if not @errors.nil?
+    def errors
+      @errors
+    end
+
+    def puts_errors errors_list = nil
+      errors_list ||= @errors
+
+      if not errors_list.nil?
         # file
         #   module
         #   author
@@ -192,25 +198,31 @@ module Provide
         LOG_CONSOLE nil
         LOG_HEAD COLOR('COMPILATION ERROR', COLOR_RED, nil, FONT_HIGHLIGHT), '[INFO]'
 
-        @errors.each do |file, info|
-          lines = []
+        errors_list.to_array.each do |errors|
+          if errors.nil?
+            next
+          end
 
-          lines << 'File  : %s' % file
-          lines << 'URL   : %s' % info[:url]
-          lines << 'Module: %s' % info[:module]
-          lines << 'Author: %s' % info[:author]
-          lines << 'Date  : %s' % info[:date]
-          lines << 'Email : %s' % info[:email]
+          errors.each do |file, info|
+            lines = []
 
-          LOG_CONSOLE nil
-          LOG_HEAD lines
+            lines << 'File  : %s' % file
+            lines << 'URL   : %s' % info[:url]
+            lines << 'Module: %s' % info[:module]
+            lines << 'Author: %s' % info[:author]
+            lines << 'Date  : %s' % info[:date]
+            lines << 'Email : %s' % info[:email]
 
-          info[:message].each do |lineno, message|
             LOG_CONSOLE nil
-            LOG_CONSOLE '  Line: %s' % lineno
+            LOG_HEAD lines
 
-            message.each do |line|
-              LOG_CONSOLE '  %s' % line
+            info[:message].each do |lineno, message|
+              LOG_CONSOLE nil
+              LOG_CONSOLE '  Line: %s' % lineno
+
+              message.each do |line|
+                LOG_CONSOLE '  %s' % line
+              end
             end
           end
         end
@@ -219,20 +231,27 @@ module Provide
       end
     end
 
-    def sendmail args = nil
+    def sendmail errors_list = nil, args = nil
+      errors_list ||= @errors
       args ||= {}
 
-      if @errors.nil?
+      if errors_list.nil?
         return true
       end
 
       map = {}
 
-      @errors.each do |file, info|
-        email = info[:email]
+      errors_list.to_array.each do |errors|
+        if errors.nil?
+          next
+        end
 
-        map[email] ||= {}
-        map[email][file] = info
+        errors.each do |file, info|
+          email = info[:email]
+
+          map[email] ||= {}
+          map[email][file] = info
+        end
       end
 
       status = true

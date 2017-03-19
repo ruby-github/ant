@@ -156,6 +156,10 @@ module REXML
     def to_file file, encoding = nil
       string = to_string encoding
 
+      if not File.directory? File.dirname(file)
+        File.mkdir File.dirname(file)
+      end
+
       File.open file, 'w', encoding: xml_decl.encoding do |f|
         f.puts string
       end

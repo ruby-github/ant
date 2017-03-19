@@ -59,6 +59,14 @@ module Provide
 
       if File.directory? path
         Dir.chdir path do
+          if args[:revert]
+            revert do |line|
+              if block_given?
+                yield line
+              end
+            end
+          end
+
           cmdline = 'git pull'
 
           if not args[:arg].nil?

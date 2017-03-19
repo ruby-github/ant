@@ -266,6 +266,12 @@ module LOG
     LOG LOG_CONSOLE, string, nil, io
   end
 
+  def LOG_HEADLINE prefix = nil, io = $stdout
+    prefix ||= '[INFO] '
+
+    LOG_CONSOLE '%s%s' % [prefix, '-' * (80 - prefix.to_s.size)], io
+  end
+
   def LOG_HEAD string, prefix = nil, io = $stdout
     string = string.utf8
     prefix = prefix.utf8
@@ -280,7 +286,7 @@ module LOG
 
     lines = []
 
-    lines << '%s%s' % [prefix, '-' * (80 - prefix.to_s.size)]
+    lines << LOG_HEADLINE(prefix, nil)
 
     string.to_array.each_with_index do |line, index|
       if index > 0
@@ -290,7 +296,96 @@ module LOG
       end
     end
 
-    lines << '%s%s' % [prefix, '-' * (80 - prefix.to_s.size)]
+    lines << LOG_HEADLINE(prefix, nil)
+
+    LOG_CONSOLE lines.join("\n"), io
+  end
+
+  def LOG_SUMMARY title, command_list, total_time, io = $stdout
+    lines = []
+
+    lines << ''
+    lines << LOG_HEADLINE(nil, nil)
+    lines << '[INFO] %s:' % (title || 'Command Summary')
+    lines << '[INFO]'
+
+    size = 48
+
+    command_list.each do |name, status, time|
+      if [STDOUT, STDERR].include? io
+        if name.to_s.locale.bytesize > size
+          size = name.to_s.locale.bytesize
+        end
+      else
+        if name.to_s.utf8.bytesize > size
+          size = name.to_s.utf8.bytesize
+        end
+      end
+    end
+
+    if size > 78
+      width = 78
+    else
+      width = size
+    end
+
+    success = 'SUCCESS'
+
+    command_list.each do |name, status, time|
+      if [STDOUT, STDERR].include? io
+        name = name.to_s.locale
+      else
+        name = name.to_s.utf8
+      end
+
+      if name.bytesize > width
+        wrap_lines = name.wrap(width).utf8
+
+        lines << '[INFO] ' + wrap_lines.shift
+        name = wrap_lines.pop
+
+        wrap_lines.each do |x|
+          lines << '       ' + x
+        end
+
+        if width > name.bytesize
+          line = '       ' + name.utf8 + ' ' + '.' * (width - name.bytesize + 2)
+        else
+          line = '       ' + name.utf8
+        end
+      else
+        line = '[INFO] ' + name.utf8 + ' ' + '.' * (width - name.bytesize + 2)
+      end
+
+      case status
+      when false
+        if time.nil?
+          lines << '%s FAILURE' % line
+        else
+          lines << '%s FAILURE [ %10s]' % [line, Time.description(time)]
+        end
+      when nil
+        lines << '%s SKIPPED' % line
+      else
+        if time.nil?
+          lines << '%s SUCCESS' % line
+        else
+          lines << '%s SUCCESS [ %10s]' % [line, Time.description(time)]
+        end
+      end
+
+      if status == false
+        success = 'FAILURE'
+      end
+    end
+
+    lines << LOG_HEADLINE(nil, nil)
+    lines << '[INFO] EXECUTE %s' % success
+    lines << LOG_HEADLINE(nil, nil)
+    lines << '[INFO] Total time: %s' % Time.description(total_time)
+    lines << '[INFO] Finished at: ' + Time.now.to_s
+    lines << LOG_HEADLINE(nil, nil)
+    lines << ''
 
     LOG_CONSOLE lines.join("\n"), io
   end
