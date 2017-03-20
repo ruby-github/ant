@@ -1,0 +1,10 @@
+[Unit]
+Description=ant daemon
+After=remote-fs.target syslog.target
+
+[Service]
+TimeoutStartSec=300
+ExecStart=${RUBY_HOME}/bin/ruby ${RUBY_HOME}/bin/ant start
+
+[Install]
+WantedBy=multi-user.target

@@ -26,18 +26,18 @@ begin
   case command
   when 'install'
     if OS::name != 'windows'
-      file = File.join Ant::HOME, 'bin/daemon'
+      file = File.join Ant::HOME, 'bin/daemon.service'
+
+      args = {
+        RUBY_HOME: File.expand_path(File.join(RbConfig::CONFIG['bindir'], '..'))
+      }
 
       lines = []
 
       IO.readlines(file).each do |line|
         line = line.rstrip
 
-        if line =~ /^RUBY_HOME\s*=/
-          line = 'RUBY_HOME=%s' % File.expand_path(File.join(RbConfig::CONFIG['bindir'], '..'))
-        end
-
-        lines << line
+        lines << line.expand(args)
       end
 
       File.open file, 'w' do |f|
@@ -50,8 +50,8 @@ begin
         pkg.file File.join(RbConfig::CONFIG['bindir'], 'daemon.exe')
         pkg.source File.join(Ant::HOME, 'bin/daemon.exe')
       else
-        pkg.file '/etc/init.d/ant_daemon'
-        pkg.source File.join(Ant::HOME, 'bin/daemon')
+        pkg.file '/lib/systemd/system/ant_daemon.service'
+        pkg.source File.join(Ant::HOME, 'bin/daemon.service')
       end
 
       pkg.enable arg
@@ -61,7 +61,7 @@ begin
       if OS::name == 'windows'
         pkg.file File.join(RbConfig::CONFIG['bindir'], 'daemon.exe')
       else
-        pkg.file '/etc/init.d/ant_daemon'
+        pkg.file '/lib/systemd/system/ant_daemon.service'
       end
 
       pkg.disable
