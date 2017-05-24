@@ -63,9 +63,25 @@ namespace :stn do
       name = (args[:name] || ENV['BUILD_NAME']).to_s.nil
       home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
       dirname = (args[:dirname] || ENV['BUILD_DIRNAME']).to_s.nil
-      cmdline = (args[:cmdline] || ENV['BUILD_CMDLINE']).to_s.nil || 'mvn deploy -fn'
-      force = (args[:force].to_s.nil || ENV['BUILD_FORCE'] == '1').to_s.boolean true
-      _retry = (args[:retry].to_s.nil || ENV['BUILD_RETRY'] == '1').to_s.boolean true
+      cmdline = (args[:cmdline] || ENV['BUILD_CMDLINE']).to_s.nil || 'mvn deploy -fn -U'
+
+      force = args[:force].to_s.nil
+      _retry = args[:retry].to_s.nil
+
+      if force.nil?
+        if not ENV['BUILD_FORCE'].nil?
+          force = ENV['BUILD_FORCE'] == '1'
+        end
+      end
+
+      if _retry.nil?
+        if not ENV['BUILD_RETRY'].nil?
+          _retry = ENV['BUILD_RETRY'] == '1'
+        end
+      end
+
+      force = force.to_s.boolean true
+      _retry = _retry.to_s.boolean true
 
       status = true
 

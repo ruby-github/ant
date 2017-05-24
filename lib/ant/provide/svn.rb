@@ -463,7 +463,7 @@ module Provide
 
     def update repository, path, args = nil
       if valid? path
-        __update__ file, args do |line|
+        __update__ path, args do |line|
           if block_given?
             yield line
           end
