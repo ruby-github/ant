@@ -5,6 +5,8 @@ require 'ant/package'
 require 'ant/provide'
 require 'ant/util'
 
+require 'rake/stn'
+
 module Ant
   HOME = File.dirname File.dirname(__FILE__)
 end
