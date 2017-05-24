@@ -7,10 +7,8 @@ module Provide
 
       cmdline = 'svn checkout'
 
-      if not args[:username].nil?
-        if repository =~ /^(http|https|ssh):\/\//
-          repository = '%s%s@%s' % [$&, args[:username], $']
-        end
+      if not args[:username].nil? and not args[:password].nil?
+        cmdline += ' --username %s --password %s' % [args[:username], args[:password]]
       end
 
       if not args[:arg].nil?
@@ -26,12 +24,6 @@ module Provide
       if CommandLine::cmdline cmdline do |line, stdin, wait_thr|
           if block_given?
             yield line
-          end
-
-          authorization line, stdin, wait_thr, args[:username], args[:password] do |tmpline|
-            if block_given?
-              yield tmpline
-            end
           end
         end
 
@@ -63,6 +55,10 @@ module Provide
 
           cmdline = 'svn update --force'
 
+          if not args[:username].nil? and not args[:password].nil?
+            cmdline += ' --username %s --password %s' % [args[:username], args[:password]]
+          end
+
           if not args[:arg].nil?
             cmdline += ' %s' % args[:arg]
           end
@@ -76,12 +72,6 @@ module Provide
           if CommandLine::cmdline cmdline do |line, stdin, wait_thr|
               if block_given?
                 yield line
-              end
-
-              authorization line, stdin, wait_thr, args[:username], args[:password] do |tmpline|
-                if block_given?
-                  yield tmpline
-                end
               end
             end
 
@@ -110,6 +100,10 @@ module Provide
       if File.directory? path
         Dir.chdir path do
           cmdline = 'svn commit'
+
+          if not args[:username].nil? and not args[:password].nil?
+            cmdline += ' --username %s --password %s' % [args[:username], args[:password]]
+          end
 
           if not args[:arg].nil?
             cmdline += ' %s' % args[:arg]
@@ -207,6 +201,10 @@ module Provide
         Dir.chdir path do
           cmdline = 'svn log'
 
+          if not args[:username].nil? and not args[:password].nil?
+            cmdline += ' --username %s --password %s' % [args[:username], args[:password]]
+          end
+
           if not args[:arg].nil?
             cmdline += ' %s' % args[:arg]
           else
@@ -226,12 +224,6 @@ module Provide
 
               if block_given?
                 yield line
-              end
-
-              authorization line, stdin, wait_thr, args[:username], args[:password] do |tmpline|
-                if block_given?
-                  yield tmpline
-                end
               end
             end
 
@@ -381,12 +373,6 @@ module Provide
               if block_given?
                 yield line
               end
-
-              authorization line, stdin, wait_thr, args[:username], args[:password] do |tmpline|
-                if block_given?
-                  yield tmpline
-                end
-              end
             end
 
             info = {}
@@ -432,55 +418,6 @@ module Provide
       end
     end
 
-    def authorization line, stdin, wait_thr, username, password
-      if not stdin.nil? and not wait_thr.nil?
-        case line.to_s.strip
-        when /^(Username|用户名):$/
-          stdin.puts username
-        when /(Password\s+for\s+.*|的密码):$/
-          stdin.puts password
-        when /\(p\)(ermanently|永远接受)(\?|？)/
-          stdin.puts 'p'
-        when /\(yes\/no\)\?/
-          stdin.puts 'yes'
-        else
-          tmpline = wait_thr[:last].to_s
-          wait_thr[:last] = ''
-
-          if not tmpline.empty?
-            case tmpline.strip
-            when /^(Username|用户名):$/
-              if block_given?
-                yield tmpline
-              end
-
-              stdin.puts username
-            when /(Password\s+for\s+.*|的密码):$/
-              if block_given?
-                yield tmpline
-              end
-
-              stdin.puts password
-            when /\(p\)(ermanently|永远接受)(\?|？)/
-              if block_given?
-                yield tmpline
-              end
-
-              stdin.puts 'p'
-            when /\(yes\/no\)\?/
-              if block_given?
-                yield tmpline
-              end
-
-              stdin.puts 'yes'
-            else
-              wait_thr[:last] = tmpline
-            end
-          end
-        end
-      end
-    end
-
     def author2email author
       if not author.nil?
         if author =~ /\d+$/
@@ -517,7 +454,7 @@ module Provide
     end
 
     class << self
-      private :authorization, :author2email, :home
+      private :author2email, :home
     end
   end
 
