@@ -14,7 +14,8 @@ $stn_repos = {
 
 namespace :stn do
   namespace :update do
-    task :update, [:name, :branch] do |t, args|
+    task :update, [:home, :name, :branch] do |t, args|
+      home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
       name = (args[:name] || ENV['BUILD_NAME']).to_s.nil
       branch = (args[:branch] || ENV['BUILD_BRANCH']).to_s.nil
 
@@ -30,9 +31,9 @@ namespace :stn do
             end
           end
 
-          ['code/asn', 'sdn'].each do |home|
-            if not Provide::Svn::update File.join($stn_repos[name], branch, home),
-              File.join(name, home), username: 'u3build', password: 'u3build' do |line|
+          ['code/asn', 'sdn'].each do |dirname|
+            if not Provide::Svn::update File.join($stn_repos[name], branch, dirname),
+              File.join(home, name, dirname), username: 'u3build', password: 'u3build' do |line|
                 puts line
               end
 
@@ -44,7 +45,7 @@ namespace :stn do
             branch = 'master'
           end
 
-          if not Provide::Git::update $stn_repos[name], name, branch: branch do |line|
+          if not Provide::Git::update $stn_repos[name], File.join(home, name), branch: branch do |line|
               puts line
             end
 
@@ -58,9 +59,10 @@ namespace :stn do
   end
 
   namespace :compile do
-    task :mvn, [:name, :home, :cmdline, :force, :retry] do |t, args|
+    task :mvn, [:home, :name, :dirname, :cmdline, :force, :retry] do |t, args|
+      home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
       name = (args[:name] || ENV['BUILD_NAME']).to_s.nil
-      home = (args[:home] || ENV['BUILD_HOME']).to_s.nil
+      dirname = (args[:dirname] || ENV['BUILD_DIRNAME']).to_s.nil
       cmdline = (args[:cmdline] || ENV['BUILD_CMDLINE']).to_s.nil || 'mvn deploy'
       force = (args[:force].to_s.nil || ENV['BUILD_FORCE'] == '1').to_s.boolean true
       _retry = (args[:retry].to_s.nil || ENV['BUILD_RETRY'] == '1').boolean false
@@ -70,15 +72,15 @@ namespace :stn do
       if $stn_repos.has_key? name
         if name == 'u3_interface'
           if home.nil?
-            build_home = File.join name, 'sdn/build'
+            build_home = File.join home, name, 'sdn/build'
           else
-            build_home = File.join name, home
+            build_home = File.join home, name, dirname
           end
         else
           if home.nil?
-            build_home = File.join name, 'code/build'
+            build_home = File.join home, name, 'code/build'
           else
-            build_home = File.join name, home
+            build_home = File.join home, name, dirname
           end
         end
 
