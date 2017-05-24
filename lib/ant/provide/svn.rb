@@ -433,47 +433,49 @@ module Provide
     end
 
     def authorization line, stdin, wait_thr, username, password
-      case line.strip
-      when /^(Username|用户名):$/
-        stdin.puts username
-      when /(Password\s+for\s+.*|的密码):$/
-        stdin.puts password
-      when /\(p\)(ermanently|永远接受)(\?|？)/
-        stdin.puts 'p'
-      when /\(yes\/no\)\?/
-        stdin.puts 'yes'
-      else
-        tmpline = wait_thr[:last].to_s
-        wait_thr[:last] = ''
+      if not stdin.nil? and not wait_thr.nil?
+        case line.to_s.strip
+        when /^(Username|用户名):$/
+          stdin.puts username
+        when /(Password\s+for\s+.*|的密码):$/
+          stdin.puts password
+        when /\(p\)(ermanently|永远接受)(\?|？)/
+          stdin.puts 'p'
+        when /\(yes\/no\)\?/
+          stdin.puts 'yes'
+        else
+          tmpline = wait_thr[:last].to_s
+          wait_thr[:last] = ''
 
-        if not tmpline.empty?
-          case tmpline.strip
-          when /^(Username|用户名):$/
-            if block_given?
-              yield tmpline
+          if not tmpline.empty?
+            case tmpline.strip
+            when /^(Username|用户名):$/
+              if block_given?
+                yield tmpline
+              end
+
+              stdin.puts username
+            when /(Password\s+for\s+.*|的密码):$/
+              if block_given?
+                yield tmpline
+              end
+
+              stdin.puts password
+            when /\(p\)(ermanently|永远接受)(\?|？)/
+              if block_given?
+                yield tmpline
+              end
+
+              stdin.puts 'p'
+            when /\(yes\/no\)\?/
+              if block_given?
+                yield tmpline
+              end
+
+              stdin.puts 'yes'
+            else
+              wait_thr[:last] = tmpline
             end
-
-            stdin.puts username
-          when /(Password\s+for\s+.*|的密码):$/
-            if block_given?
-              yield tmpline
-            end
-
-            stdin.puts password
-          when /\(p\)(ermanently|永远接受)(\?|？)/
-            if block_given?
-              yield tmpline
-            end
-
-            stdin.puts 'p'
-          when /\(yes\/no\)\?/
-            if block_given?
-              yield tmpline
-            end
-
-            stdin.puts 'yes'
-          else
-            wait_thr[:last] = tmpline
           end
         end
       end

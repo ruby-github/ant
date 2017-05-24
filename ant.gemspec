@@ -9,5 +9,5 @@ Gem::Specification.new do |s|
   s.files                 = Dir.glob('{bin,lib}/**/*') + ['ant.gemspec', 'README.md']
   s.executables           = ['ant']
   s.require_path          = 'lib'
-  s.required_ruby_version = '>= 2.4.0'
+  s.required_ruby_version = '>= 2.3.0'
 end

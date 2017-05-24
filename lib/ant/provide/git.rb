@@ -615,7 +615,7 @@ module Provide
 
     def authorization line, stdin, wait_thr, username, password
       if not stdin.nil? and not wait_thr.nil?
-        case line.strip
+        case line.to_s.strip
         when /^Username\s+for\s+.*:$/
           AskPass::askpass username
         when /^Password\s+for\s+.*:$/
