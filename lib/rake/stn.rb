@@ -2,22 +2,22 @@ require 'rake'
 
 $stn_repos = {
   'u3_interface'=> 'https://10.5.72.55:8443/svn/Interface',
-  'interface'   => 'ssh://gerrit.zte.com.cn:29418/stn/sdn_interface',
-  'framework'   => 'ssh://gerrit.zte.com.cn:29418/stn/sdn_framework',
-  'application' => 'ssh://gerrit.zte.com.cn:29418/stn/sdn_application',
-  'nesc'        => 'ssh://gerrit.zte.com.cn:29418/stn/sdn_nesc',
-  'tunnel'      => 'ssh://gerrit.zte.com.cn:29418/stn/sdn_tunnel',
-  'ict'         => 'ssh://gerrit.zte.com.cn:29418/stn/CTR-ICT',
-  'e2e'         => 'ssh://gerrit.zte.com.cn:29418/stn/SPTN-E2E',
-  'installation'=> 'ssh://gerrit.zte.com.cn:29418/stn/sdn_installation'
+  'interface'   => 'ssh://10.41.103.20:29418/stn/sdn_interface',
+  'framework'   => 'ssh://10.41.103.20:29418/stn/sdn_framework',
+  'application' => 'ssh://10.41.103.20:29418/stn/sdn_application',
+  'nesc'        => 'ssh://10.41.103.20:29418/stn/sdn_nesc',
+  'tunnel'      => 'ssh://10.41.103.20:29418/stn/sdn_tunnel',
+  'ict'         => 'ssh://10.41.103.20:29418/stn/CTR-ICT',
+  'e2e'         => 'ssh://10.41.103.20:29418/stn/SPTN-E2E',
+  'installation'=> 'ssh://10.41.103.20:29418/stn/sdn_installation'
 }
 
 namespace :stn do
   namespace :update do
-    task :update, [:home, :name, :branch] do |t, args|
-      home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
+    task :update, [:name, :branch, :home] do |t, args|
       name = (args[:name] || ENV['BUILD_NAME']).to_s.nil
       branch = (args[:branch] || ENV['BUILD_BRANCH']).to_s.nil
+      home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
 
       status = true
 
@@ -45,7 +45,7 @@ namespace :stn do
             branch = 'master'
           end
 
-          if not Provide::Git::update $stn_repos[name], File.join(home, name), branch: branch do |line|
+          if not Provide::Git::update $stn_repos[name], File.join(home, name), branch: branch, username: 'u3build' do |line|
               puts line
             end
 
@@ -59,25 +59,25 @@ namespace :stn do
   end
 
   namespace :compile do
-    task :mvn, [:home, :name, :dirname, :cmdline, :force, :retry] do |t, args|
-      home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
+    task :mvn, [:name, :home, :dirname, :cmdline, :force, :retry] do |t, args|
       name = (args[:name] || ENV['BUILD_NAME']).to_s.nil
+      home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
       dirname = (args[:dirname] || ENV['BUILD_DIRNAME']).to_s.nil
-      cmdline = (args[:cmdline] || ENV['BUILD_CMDLINE']).to_s.nil || 'mvn deploy'
+      cmdline = (args[:cmdline] || ENV['BUILD_CMDLINE']).to_s.nil || 'mvn deploy -fn'
       force = (args[:force].to_s.nil || ENV['BUILD_FORCE'] == '1').to_s.boolean true
-      _retry = (args[:retry].to_s.nil || ENV['BUILD_RETRY'] == '1').boolean false
+      _retry = (args[:retry].to_s.nil || ENV['BUILD_RETRY'] == '1').to_s.boolean true
 
       status = true
 
       if $stn_repos.has_key? name
         if name == 'u3_interface'
-          if home.nil?
+          if dirname.nil?
             build_home = File.join home, name, 'sdn/build'
           else
             build_home = File.join home, name, dirname
           end
         else
-          if home.nil?
+          if dirname.nil?
             build_home = File.join home, name, 'code/build'
           else
             build_home = File.join home, name, dirname
