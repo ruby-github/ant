@@ -14,9 +14,10 @@ $stn_repos = {
 
 namespace :stn do
   namespace :update do
-    task :update, [:name, :branch, :home] do |t, args|
-      name = (args[:name] || ENV['BUILD_NAME']).to_s.nil
-      branch = (args[:branch] || ENV['BUILD_BRANCH']).to_s.nil
+    task :update, [:name, :branch] do |t, args|
+      name = args[:name].to_s.nil
+      branch = args[:branch].to_s.nil
+
       home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
 
       status = true
@@ -52,6 +53,10 @@ namespace :stn do
             status = false
           end
         end
+      else
+        LOG_ERROR 'name not found in %s' % $stn_repos.to_s
+
+        status = false
       end
 
       status.exit
@@ -59,29 +64,14 @@ namespace :stn do
   end
 
   namespace :compile do
-    task :mvn, [:name, :home, :dirname, :cmdline, :force, :retry] do |t, args|
-      name = (args[:name] || ENV['BUILD_NAME']).to_s.nil
+    task :mvn, [:name, :dirname, :cmdline, :force, :retry] do |t, args|
+      name = args[:name].to_s.nil
+      dirname = args[:dirname].to_s.nil
+      cmdline = args[:cmdline].to_s.nil || 'mvn deploy -fn -U'
+      force = args[:force].to_s.boolean true
+      _retry = args[:retry].to_s.boolean true
+
       home = (args[:home] || ENV['BUILD_HOME']).to_s.nil || 'main'
-      dirname = (args[:dirname] || ENV['BUILD_DIRNAME']).to_s.nil
-      cmdline = (args[:cmdline] || ENV['BUILD_CMDLINE']).to_s.nil || 'mvn deploy -fn -U'
-
-      force = args[:force].to_s.nil
-      _retry = args[:retry].to_s.nil
-
-      if force.nil?
-        if not ENV['BUILD_FORCE'].nil?
-          force = ENV['BUILD_FORCE'] == '1'
-        end
-      end
-
-      if _retry.nil?
-        if not ENV['BUILD_RETRY'].nil?
-          _retry = ENV['BUILD_RETRY'] == '1'
-        end
-      end
-
-      force = force.to_s.boolean true
-      _retry = _retry.to_s.boolean true
 
       status = true
 
@@ -105,7 +95,9 @@ namespace :stn do
 
         if _retry
           if not maven.mvn cmdline, force, nil, true do |line|
-              puts line
+              if not maven.ignore
+                puts line
+              end
             end
 
             if not maven.mvn_retry cmdline do |line|
@@ -128,6 +120,10 @@ namespace :stn do
           maven.puts_errors
           # maven.sendmail
         end
+      else
+        LOG_ERROR 'name not found in %s' % $stn_repos.to_s
+
+        status = false
       end
 
       status.exit

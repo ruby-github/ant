@@ -1,5 +1,7 @@
 module Provide
   class Maven
+    attr_reader :ignore
+
     def initialize
       @path = Dir.pwd
 
@@ -8,6 +10,9 @@ module Provide
 
       @module_name = nil
       @module_home = Dir.pwd
+
+      @ignore = nil
+      @summary = false
     end
 
     def path path
@@ -17,6 +22,9 @@ module Provide
     def clean lang = nil, skiperror = true
       @errors = nil
       @lines = []
+
+      @ignore = nil
+      @summary = false
 
       if not File.directory? @path
         LOG_ERROR 'no such directory: %s' % @path
@@ -28,6 +36,8 @@ module Provide
         status = nil
 
         CommandLine::cmdline 'mvn clean -fn' do |line, stdin, wait_thr|
+          ignore? line, stdin
+
           if block_given?
             yield line
           end
@@ -55,6 +65,9 @@ module Provide
       @errors = nil
       @lines = []
 
+      @ignore = nil
+      @summary = false
+
       if not File.directory? @path
         LOG_ERROR 'no such directory: %s' % @path
 
@@ -64,6 +77,8 @@ module Provide
       Dir.chdir @path do
         if clean
           CommandLine::cmdline 'mvn clean -fn' do |line, stdin, wait_thr|
+            ignore? line, stdin
+
             if block_given?
               yield line
             end
@@ -73,6 +88,8 @@ module Provide
         status = nil
 
         CommandLine::cmdline cmdline do |line, stdin, wait_thr|
+          ignore? line, stdin
+
           if block_given?
             yield line
           end
@@ -98,6 +115,9 @@ module Provide
       cmdline ||= 'mvn install -fn'
 
       @errors = nil
+
+      @ignore = nil
+      @summary = false
 
       if not File.directory? @path
         LOG_ERROR 'no such directory: %s' % @path
@@ -155,6 +175,8 @@ module Provide
 
         Dir.chdir 'tmp' do
           CommandLine::cmdline cmdline do |line, stdin, wait_thr|
+            ignore? line, stdin
+
             if block_given?
               yield line
             end
@@ -385,6 +407,39 @@ module Provide
       end
 
       map
+    end
+
+    def ignore? line, stdin
+      if stdin.nil?
+        @ignore = false
+      else
+        if @summary
+          @ignore = false
+        else
+          case line.strip
+          when /^\[INFO\]\s+Reactor\s+Summary:$/
+            @summary = true
+            @ignore = false
+          when /^\[INFO\]\s+Final\s+Memory:$/
+            @summary = false
+            @ignore = false
+          when /^\[INFO\]\s+-+$/
+            @ignore = false
+          when /^\[INFO\]\s+Building\s+/
+            @ignore = false
+          when /\[(ERROR|EXCEPTION)\]/
+            @ignore = false
+          when /\[exec\].*error/
+            @ignore = false
+          when /\:.*error/
+            @ignore = false
+          else
+            @ignore = true
+          end
+        end
+      end
+
+      @ignore
     end
 
     def retry_module
