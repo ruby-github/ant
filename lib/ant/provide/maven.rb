@@ -85,6 +85,9 @@ module Provide
           end
         end
 
+        @ignore = nil
+        @summary = false
+
         status = nil
 
         CommandLine::cmdline cmdline do |line, stdin, wait_thr|
@@ -413,16 +416,14 @@ module Provide
       if stdin.nil?
         @ignore = false
       else
+        if line.strip =~ /^\[INFO\]\s+Reactor\s+Summary:$/
+          @summary = true
+        end
+
         if @summary
           @ignore = false
         else
           case line.strip
-          when /^\[INFO\]\s+Reactor\s+Summary:$/
-            @summary = true
-            @ignore = false
-          when /^\[INFO\]\s+Final\s+Memory:$/
-            @summary = false
-            @ignore = false
           when /^\[INFO\]\s+-+$/
             @ignore = false
           when /^\[INFO\]\s+Building\s+/
@@ -436,6 +437,10 @@ module Provide
           else
             @ignore = true
           end
+        end
+
+        if line.strip =~ /^\[INFO\]\s+Final\s+Memory:/
+          @summary = false
         end
       end
 
