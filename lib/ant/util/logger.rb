@@ -394,7 +394,12 @@ end
 include COLOR
 include LOG
 
-$console = true
+if ENV.has_key? 'NO_CONSOLE'
+  $console = false
+else
+  $console = true
+end
+
 $backtrace = false
 $logging = false
 $log_level = LOG_PUTS
