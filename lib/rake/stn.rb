@@ -118,7 +118,7 @@ namespace :stn do
 
         if not status
           maven.puts_errors
-          # maven.sendmail
+          maven.sendmail
         end
       else
         LOG_ERROR 'name not found in %s' % $stn_repos.to_s
