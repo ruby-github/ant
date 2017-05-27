@@ -200,14 +200,16 @@ module Provide
     end
 
     def save
+      if not File.directory? File.dirname(@file)
+        File.mkdir File.dirname(@file)
+      end
+
       begin
         @zip.commit
 
         true
       rescue
         LOG_EXCEPTION $!
-
-        @zip.initialize @file
 
         false
       end

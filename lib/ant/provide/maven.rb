@@ -431,7 +431,7 @@ module Provide
           when /\[(ERROR|EXCEPTION)\]/
             @ignore = false
           when /http:\/\//
-            @ignore = false
+            @ignore = true
           when /\[exec\].*error/
             @ignore = false
           when /\:.*error/
