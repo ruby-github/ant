@@ -155,7 +155,7 @@ module STN
       end
 
       if File.directory? home
-        packagename = 'stn_%s_%s' % [branch, Time.timestamp_day]
+        packagename = 'stn_%s_%s' % [branch, Time.now.timestamp_day]
 
         zip = Provide::Zip.new File.join(zipfile_home, '%s_%s.zip' % [packagename, name])
 

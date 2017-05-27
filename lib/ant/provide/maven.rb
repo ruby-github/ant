@@ -430,6 +430,8 @@ module Provide
             @ignore = false
           when /\[(ERROR|EXCEPTION)\]/
             @ignore = false
+          when /http:\/\//
+            @ignore = false
           when /\[exec\].*error/
             @ignore = false
           when /\:.*error/

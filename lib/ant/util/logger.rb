@@ -287,6 +287,7 @@ module LOG
 
     lines = []
 
+    lines << ''
     lines << LOG_HEADLINE(prefix, nil)
 
     string.to_array.each_with_index do |line, index|
@@ -298,6 +299,7 @@ module LOG
     end
 
     lines << LOG_HEADLINE(prefix, nil)
+    lines << ''
 
     LOG_CONSOLE lines.join("\n"), io
   end
