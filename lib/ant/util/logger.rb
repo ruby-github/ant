@@ -1,6 +1,7 @@
 # ----------------------------------------------------------
 #
 # $console = true
+# $console_color = true
 # $backtrace = false
 # $logging = false
 #
@@ -86,7 +87,7 @@ module COLOR
           string
         end
       else
-        if $console
+        if $console and $console_color
           colorize = []
 
           if not fore_color.nil?
@@ -394,12 +395,13 @@ end
 include COLOR
 include LOG
 
-if ENV['CONSOLE'] == '0'
-  $console = false
+if ENV['CONSOLE_COLOR'] == '0'
+  $console_color = false
 else
-  $console = true
+  $console_color = true
 end
 
+$console = true
 $backtrace = false
 $logging = false
 $log_level = LOG_PUTS
