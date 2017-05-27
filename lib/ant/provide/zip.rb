@@ -10,6 +10,10 @@ module Provide
         if File.file? @file and not create
           @zip = ::Zip::File.new @file
         else
+          if File.file? @file
+            File.delete @file
+          end
+
           @zip = ::Zip::File.new @file, ::Zip::File::CREATE
         end
 
@@ -68,9 +72,9 @@ module Provide
               end
             end
 
-            @zip.add dup, source
+            @zip.add dup, File.expand_path(source)
           else
-            @zip.replace entry, source
+            @zip.replace entry, File.expand_path(source)
           end
         rescue
           LOG_EXCEPTION $!
@@ -106,9 +110,9 @@ module Provide
                     end
                   end
 
-                  @zip.add dup, name
+                  @zip.add dup, File.expand_path(name)
                 else
-                  @zip.replace entry, name
+                  @zip.replace entry, File.expand_path(name)
                 end
               rescue
                 LOG_EXCEPTION $!

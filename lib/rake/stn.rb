@@ -79,6 +79,12 @@ module STN
 
     LOG_HEAD '开始版本编译 ...'
 
+    if not ENV.has_key? 'POM_VERSION'
+      if branch != 'master'
+        ENV['POM_VERSION'] = branch.to_s.strip.gsub(' ', '').upcase
+      end
+    end
+
     keys = repository.keys
 
     if keys.include? name
@@ -159,8 +165,12 @@ module STN
 
         zip = Provide::Zip.new File.join(zipfile_home, '%s_%s.zip' % [packagename, name])
 
-        if zip.add home, packagename and zip.save
-          true
+        if zip.open true
+          if zip.add home, packagename and zip.save
+            true
+          else
+            false
+          end
         else
           false
         end
@@ -210,28 +220,7 @@ namespace :stn do
     STN::build(name, branch, dirname, cmdline, force, _retry, update, compile, package).exit
   end
 
-  task :update, [:name, :branch] do |t, args|
-    name = args[:name].to_s.nil
-    branch = args[:branch].to_s.nil
-
-    STN::update(name, branch).exit
-  end
-
-  task :compile, [:name, :branch] do |t, args|
-    name = args[:name].to_s.nil
-    branch = args[:branch].to_s.nil
-    dirname = args[:dirname].to_s.nil
-    cmdline = args[:cmdline].to_s.nil
-    force = args[:force].to_s.boolean true
-    _retry = args[:retry].to_s.boolean true
-
-    STN::compile(name, branch, dirname, cmdline, force, _retry).exit
-  end
-
-  task :package, [:name, :branch] do |t, args|
-    name = args[:name].to_s.nil
-    branch = args[:branch].to_s.nil
-
-    STN::package(name, branch).exit
+  task :parent do |t, args|
+    (STN::update 'interface' and STN::compile 'interface', nil, 'pom', nil, true, false).exit
   end
 end
