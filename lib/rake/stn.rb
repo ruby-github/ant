@@ -1,94 +1,105 @@
 require 'rake'
 
-$stn_repos = {
-  'u3_interface'=> 'https://10.5.72.55:8443/svn/Interface',
-  'interface'   => 'ssh://10.41.103.20:29418/stn/sdn_interface',
-  'framework'   => 'ssh://10.41.103.20:29418/stn/sdn_framework',
-  'application' => 'ssh://10.41.103.20:29418/stn/sdn_application',
-  'nesc'        => 'ssh://10.41.103.20:29418/stn/sdn_nesc',
-  'tunnel'      => 'ssh://10.41.103.20:29418/stn/sdn_tunnel',
-  'ict'         => 'ssh://10.41.103.20:29418/stn/CTR-ICT',
-  'e2e'         => 'ssh://10.41.103.20:29418/stn/SPTN-E2E',
-  'installation'=> 'ssh://10.41.103.20:29418/stn/sdn_installation'
-}
+if ENV['SENDMAIL'] == '1'
+  $sendmail = true
+end
 
-namespace :stn do
-  task :update, [:name, :branch] do |t, args|
-    name = args[:name].to_s.nil
-    branch = args[:branch].to_s.nil
+module STN
+  module_function
 
-    home = ENV['BUILD_HOME'].to_s.nil || 'main'
+  def build name, branch = nil, dirname = nil, cmdline = nil, force = true, _retry = true, update = true, compile = true, package = true
+    if update
+      if not update name, branch
+        return false
+      end
+    end
 
-    status = true
+    if compile
+      if not compile name, branch, dirname, cmdline, force, _retry
+        return false
+      end
+    end
 
-    if $stn_repos.has_key? name
+    if package
+      if not package name, branch
+        return false
+      end
+    end
+
+    return true
+  end
+
+  def update name, branch = nil
+    branch ||= 'master'
+
+    LOG_HEAD '开始版本更新 ...'
+
+    repos = repository
+
+    if repos.has_key? name
       if name == 'u3_interface'
-        if branch.nil?
-          branch = 'trunk'
+        if branch == 'master'
+          http = File.join repos[name], 'trunk'
         else
-          if branch == File.basename(branch)
-            branch = File.join 'branches', branch
-          end
+          http = File.join repos[name], 'branches', branch
         end
 
         ['code/asn', 'sdn'].each do |dirname|
-          if not Provide::Svn::update File.join($stn_repos[name], branch, dirname),
-            File.join(home, name, dirname), username: 'u3build', password: 'u3build' do |line|
+          if not Provide::Svn::update File.join(http, dirname), File.join(branch, name, dirname), username: 'u3build', password: 'u3build' do |line|
               puts line
             end
 
-            status = false
+            File.delete File.join(branch, name, dirname)
+
+            return false
           end
         end
       else
-        if branch.nil?
-          branch = 'master'
-        end
-
-        if not Provide::Git::update $stn_repos[name], File.join(home, name), branch: branch, username: 'u3build' do |line|
+        if not Provide::Git::update repos[name], File.join(branch, name), branch: branch, username: 'u3build' do |line|
             puts line
           end
 
-          status = false
+          File.delete File.join(branch, name)
+
+          return false
         end
       end
+
+      true
     else
-      LOG_ERROR 'name not found in %s' % $stn_repos.to_s
+      LOG_ERROR 'name not found in %s' % repos.keys.to_s
 
-      status = false
+      false
     end
-
-    status.exit
   end
 
-  task :compile, [:name, :dirname, :cmdline, :force, :retry] do |t, args|
-    name = args[:name].to_s.nil
-    dirname = args[:dirname].to_s.nil
-    cmdline = args[:cmdline].to_s.nil || 'mvn deploy -fn -U'
-    force = args[:force].to_s.boolean true
-    _retry = args[:retry].to_s.boolean true
+  def compile name, branch = nil, dirname = nil, cmdline = nil, force = true, _retry = true
+    branch ||= 'master'
+    cmdline ||= 'mvn deploy -fn -U'
 
-    home = ENV['BUILD_HOME'].to_s.nil || 'main'
+    LOG_HEAD '开始版本编译 ...'
 
-    status = true
+    keys = repository.keys
 
-    if $stn_repos.has_key? name
+    if keys.include? name
       if name == 'u3_interface'
         if dirname.nil?
-          build_home = File.join home, name, 'sdn/build'
+          home = File.join branch, name, 'sdn/build'
         else
-          build_home = File.join home, name, dirname
+          home = File.join branch, name, dirname
         end
       else
         if dirname.nil?
-          build_home = File.join home, name, 'code/build'
+          home = File.join branch, name, 'code/build'
         else
-          build_home = File.join home, name, dirname
+          home = File.join branch, name, dirname
         end
       end
 
       maven = Provide::Maven.new
-      maven.path build_home
+      maven.path home
+
+      status = true
 
       if _retry
         if not maven.mvn cmdline, force, nil, true do |line|
@@ -117,72 +128,110 @@ namespace :stn do
         maven.puts_errors
         maven.sendmail
       end
+
+      status
     else
-      LOG_ERROR 'name not found in %s' % $stn_repos.to_s
+      LOG_ERROR 'name not found in %s' % repos.keys.to_s
 
-      status = false
+      false
     end
-
-    status.exit
   end
 
-  task :install do |t, args|
-    home = ENV['BUILD_HOME'].to_s.nil || 'main'
+  def package name, branch = nil
+    branch ||= 'master'
 
-    status = true
+    LOG_HEAD '开始版本打包 ...'
 
-    if File.directory? home
-      tmpdir = File.join 'output', File.tmpname
+    keys = repository.keys
 
-      $stn_repos.keys.each do |name|
-        if name == 'u3_interface'
-          output_home = File.join home, name, 'sdn/build/output'
+    if keys.include? name
+      zipfile_home = File.join 'zipfile', branch
+      File.delete zipfile_home
+
+      if name == 'u3_interface'
+        home = File.join branch, name, 'sdn/build/output'
+      else
+        home = File.join branch, name, 'code/build/output'
+      end
+
+      if File.directory? home
+        packagename = 'stn_%s_%s' % [branch, Time.timestamp_day]
+
+        zip = Provide::Zip.new File.join(zipfile_home, '%s_%s.zip' % [packagename, name])
+
+        if zip.add home, packagename and zip.save
+          true
         else
-          output_home = File.join home, name, 'code/build/output'
+          false
         end
+      else
+        LOG_ERROR 'no such directory: %s' % File.expand_path(home)
 
-        if not File.directory? output_home
-          LOG_ERROR 'no such directory: %s' % File.expand_path(output_home)
-
-          status = false
-
-          break
-        end
-
-        if not File.copy output_home, tmpdir do |file|
-            puts file
-
-            file
-          end
-
-          status = false
-
-          break
-        end
+        false
       end
-
-      if status
-        if File.directory? tmpdir
-          filename = File.expand_path 'stn_%s_%s.tar.gz' % [File.basename(home), Time.timestamp_day]
-
-          Dir.chdir tmpdir do
-            if not Provide::CommandLine::cmdline 'tar vczf %s *' % File.cmdline(tmpdir) do |line|
-                puts line
-              end
-
-              status = false
-            end
-          end
-        end
-      end
-
-      File.delete tmpdir
     else
-      LOG_ERROR 'no such directory: %s' % File.expand_path(home)
+      LOG_ERROR 'name not found in %s' % repos.keys.to_s
 
-      status = false
+      false
     end
+  end
 
-    status.exit
+  def repository
+    http_git = ENV['HTTP_GIT'].to_s.nil || 'ssh://10.41.103.20:29418/stn'
+    http_svn = ENV['HTTP_SVN'].to_s.nil || 'https://10.5.72.55:8443/svn'
+
+    {
+      'u3_interface'=> File.join(http_svn, 'Interface'),
+      'interface'   => File.join(http_git, 'sdn_interface'),
+      'framework'   => File.join(http_git, 'sdn_framework'),
+      'application' => File.join(http_git, 'sdn_application'),
+      'nesc'        => File.join(http_git, 'sdn_nesc'),
+      'tunnel'      => File.join(http_git, 'sdn_tunnel'),
+      'ict'         => File.join(http_git, 'CTR-ICT'),
+      'e2e'         => File.join(http_git, 'SPTN-E2E'),
+      'installation'=> File.join(http_git, 'sdn_installation')
+    }
+  end
+end
+
+namespace :stn do
+  task :build, [:name, :branch, :dirname, :cmdline, :force, :retry, :update, :compile, :package] do |t, args|
+    name = args[:name].to_s.nil
+    branch = args[:branch].to_s.nil
+    dirname = args[:dirname].to_s.nil
+    cmdline = args[:cmdline].to_s.nil
+    force = args[:force].to_s.boolean true
+    _retry = args[:retry].to_s.boolean true
+
+    update = args[:update].to_s.boolean true
+    compile = args[:compile].to_s.boolean true
+    package = args[:package].to_s.boolean true
+
+    STN::build(name, branch, dirname, cmdline, force, _retry, update, compile, package).exit
+  end
+
+  task :update, [:name, :branch] do |t, args|
+    name = args[:name].to_s.nil
+    branch = args[:branch].to_s.nil
+
+    STN::update(name, branch).exit
+  end
+
+  task :compile, [:name, :branch] do |t, args|
+    name = args[:name].to_s.nil
+    branch = args[:branch].to_s.nil
+    dirname = args[:dirname].to_s.nil
+    cmdline = args[:cmdline].to_s.nil
+    force = args[:force].to_s.boolean true
+    _retry = args[:retry].to_s.boolean true
+
+    STN::compile(name, branch, dirname, cmdline, force, _retry).exit
+  end
+
+  task :package, [:name, :branch] do |t, args|
+    name = args[:name].to_s.nil
+    branch = args[:branch].to_s.nil
+
+    STN::package(name, branch).exit
   end
 end

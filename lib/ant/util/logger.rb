@@ -394,7 +394,7 @@ end
 include COLOR
 include LOG
 
-if ENV.has_key? 'NO_CONSOLE'
+if ENV['CONSOLE'] == '0'
   $console = false
 else
   $console = true
