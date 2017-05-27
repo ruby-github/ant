@@ -165,15 +165,24 @@ module STN
 
         zip = Provide::Zip.new File.join(zipfile_home, '%s_%s.zip' % [packagename, name])
 
-        if zip.open true
-          if zip.add home, packagename and zip.save
-            true
-          else
-            false
-          end
-        else
-          false
+        if not zip.open true
+          return false
         end
+
+        if not zip.add home, packagename do |file|
+            puts file
+
+            file
+          end
+
+          return false
+        end
+
+        if not zip.save
+          return false
+        end
+
+        true
       else
         LOG_ERROR 'no such directory: %s' % File.expand_path(home)
 
