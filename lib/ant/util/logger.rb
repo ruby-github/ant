@@ -300,6 +300,7 @@ module LOG
 
     lines << LOG_HEADLINE(prefix, nil)
     lines << ''
+    lines << ''
 
     LOG_CONSOLE lines.join("\n"), io
   end
