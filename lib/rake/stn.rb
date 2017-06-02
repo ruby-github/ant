@@ -10,7 +10,7 @@ module STN
   def update name, branch = nil
     branch ||= 'master'
 
-    LOG_HEAD '开始版本更新 ...'
+    LOG_HEAD '开始版本更新(%s:%s) ...' % [name, branch]
 
     repos = repository
 
@@ -51,16 +51,20 @@ module STN
     end
   end
 
-  def compile name, branch = nil, dirname = nil, cmdline = nil, force = true, _retry = true
+  def compile name, branch = nil, dirname = nil, cmdline = nil, force = true, _retry = true, version = nil
     branch ||= 'master'
     cmdline ||= 'mvn deploy -fn -U'
 
-    LOG_HEAD '开始版本编译 ...'
+    LOG_HEAD '开始版本编译(%s:%s) ...' % [name, branch]
 
-    if not ENV.has_key? 'POM_VERSION'
-      if branch != 'master'
-        ENV['POM_VERSION'] = branch.to_s.strip.gsub(' ', '').upcase
+    if version.nil?
+      if not ENV.has_key? 'POM_VERSION'
+        if branch != 'master'
+          ENV['POM_VERSION'] = branch.to_s.strip.gsub(' ', '').upcase
+        end
       end
+    else
+      ENV['POM_VERSION'] = version.to_s.strip.gsub(' ', '').upcase
     end
 
     keys = repository.keys
@@ -121,15 +125,15 @@ module STN
     end
   end
 
-  def package branch = nil
+  def package branch = nil, version = nil
     branch ||= 'master'
 
-    LOG_HEAD '开始版本打包 ...'
+    LOG_HEAD '开始版本打包(%s:%s) ...' % [branch, version]
 
     zipfile_home = File.join 'zipfile', branch
     File.delete zipfile_home
 
-    zip = Provide::Zip.new File.join(zipfile_home, 'stn_%s_%s.zip' % [branch, Time.now.timestamp_day])
+    zip = Provide::Zip.new File.join(zipfile_home, 'stn_%s_%s.zip' % [branch, (version || Time.now.timestamp_day).to_s.strip.gsub(' ', '').downcase])
 
     if not zip.open true
       return false
@@ -151,10 +155,6 @@ module STN
 
           return false
         end
-      else
-        LOG_ERROR 'no such directory: %s' % File.expand_path(home)
-
-        return false
       end
     end
 
@@ -176,8 +176,8 @@ module STN
       'application' => File.join(http_git, 'sdn_application'),
       'nesc'        => File.join(http_git, 'sdn_nesc'),
       'tunnel'      => File.join(http_git, 'sdn_tunnel'),
-      'ict'         => File.join(http_git, 'CTR-ICT'),
       'e2e'         => File.join(http_git, 'SPTN-E2E'),
+      'ict'         => File.join(http_git, 'CTR-ICT'),
       'installation'=> File.join(http_git, 'sdn_installation')
     }
   end
@@ -197,20 +197,22 @@ namespace :stn do
     STN::update(name, branch).exit
   end
 
-  task :compile, [:name, :branch, :dirname, :cmdline, :force, :retry] do |t, args|
+  task :compile, [:name, :branch, :dirname, :cmdline, :force, :retry, :version] do |t, args|
     name = args[:name].to_s.nil
     branch = args[:branch].to_s.nil
     dirname = args[:dirname].to_s.nil
     cmdline = args[:cmdline].to_s.nil
     force = args[:force].to_s.boolean true
     _retry = args[:retry].to_s.boolean true
+    version = args[:version].to_s.nil
 
-    STN::compile(name, branch, dirname, cmdline, force, _retry).exit
+    STN::compile(name, branch, dirname, cmdline, force, _retry, version).exit
   end
 
-  task :package, [:branch] do |t, args|
+  task :package, [:branch, :version] do |t, args|
     branch = args[:branch].to_s.nil
+    version = args[:version].to_s.nil
 
-    STN::package(branch).exit
+    STN::package(branch, version).exit
   end
 end
