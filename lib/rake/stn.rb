@@ -7,28 +7,6 @@ end
 module STN
   module_function
 
-  def build name, branch = nil, dirname = nil, cmdline = nil, force = true, _retry = true, update = true, compile = true, package = true
-    if update
-      if not update name, branch
-        return false
-      end
-    end
-
-    if compile
-      if not compile name, branch, dirname, cmdline, force, _retry
-        return false
-      end
-    end
-
-    if package
-      if not package name, branch
-        return false
-      end
-    end
-
-    return true
-  end
-
   def update name, branch = nil
     branch ||= 'master'
 
@@ -143,17 +121,21 @@ module STN
     end
   end
 
-  def package name, branch = nil
+  def package branch = nil
     branch ||= 'master'
 
     LOG_HEAD '开始版本打包 ...'
 
-    keys = repository.keys
+    zipfile_home = File.join 'zipfile', branch
+    File.delete zipfile_home
 
-    if keys.include? name
-      zipfile_home = File.join 'zipfile', branch
-      File.delete zipfile_home
+    zip = Provide::Zip.new File.join(zipfile_home, 'stn_%s_%s.zip' % [branch, Time.now.timestamp_day])
 
+    if not zip.open true
+      return false
+    end
+
+    repository.keys.each do |name|
       if name == 'u3_interface'
         home = File.join branch, name, 'sdn/build/output'
       else
@@ -161,15 +143,7 @@ module STN
       end
 
       if File.directory? home
-        packagename = 'stn_%s_%s' % [branch, Time.now.timestamp_day]
-
-        zip = Provide::Zip.new File.join(zipfile_home, '%s_%s.zip' % [packagename, name])
-
-        if not zip.open true
-          return false
-        end
-
-        if not zip.add home, packagename do |file|
+        if not zip.add home do |file|
             puts file
 
             file
@@ -177,22 +151,18 @@ module STN
 
           return false
         end
-
-        if not zip.save
-          return false
-        end
-
-        true
       else
         LOG_ERROR 'no such directory: %s' % File.expand_path(home)
 
-        false
+        return false
       end
-    else
-      LOG_ERROR 'name not found in %s' % repos.keys.to_s
-
-      false
     end
+
+    if not zip.save
+      return false
+    end
+
+    true
   end
 
   def repository
@@ -214,7 +184,20 @@ module STN
 end
 
 namespace :stn do
-  task :build, [:name, :branch, :dirname, :cmdline, :force, :retry, :update, :compile, :package] do |t, args|
+  task :base, [:branch] do |t, args|
+    branch = args[:branch].to_s.nil
+
+    (STN::update 'interface', branch and STN::compile 'interface', branch, 'pom', nil, true, false).exit
+  end
+
+  task :update, [:name, :branch] do |t, args|
+    name = args[:name].to_s.nil
+    branch = args[:branch].to_s.nil
+
+    STN::update(name, branch).exit
+  end
+
+  task :compile, [:name, :branch, :dirname, :cmdline, :force, :retry] do |t, args|
     name = args[:name].to_s.nil
     branch = args[:branch].to_s.nil
     dirname = args[:dirname].to_s.nil
@@ -222,16 +205,12 @@ namespace :stn do
     force = args[:force].to_s.boolean true
     _retry = args[:retry].to_s.boolean true
 
-    update = args[:update].to_s.boolean true
-    compile = args[:compile].to_s.boolean true
-    package = args[:package].to_s.boolean true
-
-    STN::build(name, branch, dirname, cmdline, force, _retry, update, compile, package).exit
+    STN::compile(name, branch, dirname, cmdline, force, _retry).exit
   end
 
-  task :base, [:branch] do |t, args|
+  task :package, [:branch] do |t, args|
     branch = args[:branch].to_s.nil
 
-    (STN::update 'interface', branch and STN::compile 'interface', branch, 'pom', nil, true, false).exit
+    STN::package(branch).exit
   end
 end
