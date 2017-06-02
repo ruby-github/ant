@@ -229,7 +229,7 @@ namespace :stn do
     STN::build(name, branch, dirname, cmdline, force, _retry, update, compile, package).exit
   end
 
-  task :parent, [:branch] do |t, args|
+  task :base, [:branch] do |t, args|
     branch = args[:branch].to_s.nil
 
     (STN::update 'interface', branch and STN::compile 'interface', branch, 'pom', nil, true, false).exit
