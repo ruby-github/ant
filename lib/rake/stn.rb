@@ -51,21 +51,11 @@ module STN
     end
   end
 
-  def compile name, branch = nil, dirname = nil, cmdline = nil, force = true, _retry = true, version = nil
+  def compile name, branch = nil, dirname = nil, cmdline = nil, force = true, _retry = true
     branch ||= 'master'
     cmdline ||= 'mvn deploy -fn -U'
 
     LOG_HEAD '开始版本编译(%s:%s) ...' % [name, branch]
-
-    if version.nil?
-      if not ENV.has_key? 'POM_VERSION'
-        if branch != 'master'
-          ENV['POM_VERSION'] = branch.to_s.strip.gsub(' ', '').upcase
-        end
-      end
-    else
-      ENV['POM_VERSION'] = version.to_s.strip.gsub(' ', '').upcase
-    end
 
     keys = repository.keys
 
@@ -184,10 +174,23 @@ module STN
 end
 
 namespace :stn do
-  task :base, [:branch] do |t, args|
+  task :base, [:branch, :update] do |t, args|
     branch = args[:branch].to_s.nil
+    update = args[:update].to_s.boolean false
 
-    (STN::update 'interface', branch and STN::compile 'interface', branch, 'pom', nil, true, false).exit
+    status = true
+
+    if update
+      if not STN::update 'interface', branch
+        status = false
+      end
+    end
+
+    if not STN::compile 'interface', branch, 'pom', nil, true, false
+      status = false
+    end
+
+    status.exit
   end
 
   task :update, [:name, :branch] do |t, args|
@@ -206,7 +209,11 @@ namespace :stn do
     _retry = args[:retry].to_s.boolean true
     version = args[:version].to_s.nil
 
-    STN::compile(name, branch, dirname, cmdline, force, _retry, version).exit
+    if not version.nil?
+      ENV['POM_VERSION'] = version.gsub(' ', '').upcase
+    end
+
+    STN::compile(name, branch, dirname, cmdline, force, _retry).exit
   end
 
   task :package, [:branch, :version] do |t, args|
