@@ -164,7 +164,6 @@ module STN
       'interface'   => File.join(http_git, 'sdn_interface'),
       'framework'   => File.join(http_git, 'sdn_framework'),
       'application' => File.join(http_git, 'sdn_application'),
-      'nesc'        => File.join(http_git, 'sdn_nesc'),
       'tunnel'      => File.join(http_git, 'sdn_tunnel'),
       'e2e'         => File.join(http_git, 'SPTN-E2E'),
       'ict'         => File.join(http_git, 'CTR-ICT'),
