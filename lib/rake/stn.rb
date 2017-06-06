@@ -174,9 +174,14 @@ module STN
 end
 
 namespace :stn do
-  task :base, [:branch, :update] do |t, args|
+  task :base, [:branch, :update, :version] do |t, args|
     branch = args[:branch].to_s.nil
     update = args[:update].to_s.boolean false
+    version = args[:version].to_s.nil
+
+    if not version.nil?
+      ENV['POM_VERSION'] = version.gsub(' ', '').upcase
+    end
 
     status = true
 
