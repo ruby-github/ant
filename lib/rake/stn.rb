@@ -115,12 +115,12 @@ module STN
     end
   end
 
-  def package branch = nil, version = nil
+  def package branch = nil, version = nil, username = nil, password = nil
     branch ||= 'master'
 
     LOG_HEAD '开始版本打包(%s:%s) ...' % [branch, version]
 
-    zipfile_home = File.join 'zipfile', branch
+    zipfile_home = '/tmp/zipfile'
     File.delete zipfile_home
 
     zip = Provide::Zip.new File.join(zipfile_home, 'stn_%s_%s.zip' % [branch, (version || Time.now.timestamp_day).to_s.strip.gsub(' ', '').downcase])
@@ -150,6 +150,20 @@ module STN
 
     if not zip.save
       return false
+    end
+
+    if not username.nil? and not password.nil?
+      [
+        'jfrog rt config --url=http://artifacts.zte.com.cn/artifactory --interactive=false --user=%s --password=%s' % [username, password],
+        'jfrog rt u %s stn_contoller-generic-local/stn_daily/' % File.join(zipfile_home, '*.zip')
+      ].each do |cmdline|
+        if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
+            puts line
+          end
+
+          return false
+        end
+      end
     end
 
     true
@@ -220,10 +234,12 @@ namespace :stn do
     STN::compile(name, branch, dirname, cmdline, force, _retry).exit
   end
 
-  task :package, [:branch, :version] do |t, args|
+  task :package, [:branch, :version, :username, :password] do |t, args|
     branch = args[:branch].to_s.nil
     version = args[:version].to_s.nil
+    username = args[:username].to_s.nil || (ENV['ARTIFACT_USERNAME'] || '')
+    password = args[:password].to_s.nil || (ENV['ARTIFACT_PASSWORD'] || '')
 
-    STN::package(branch, version).exit
+    STN::package(branch, version, username, password).exit
   end
 end
