@@ -237,8 +237,8 @@ namespace :stn do
   task :package, [:branch, :version, :username, :password] do |t, args|
     branch = args[:branch].to_s.nil
     version = args[:version].to_s.nil
-    username = args[:username].to_s.nil || (ENV['ARTIFACT_USERNAME'] || '')
-    password = args[:password].to_s.nil || (ENV['ARTIFACT_PASSWORD'] || '')
+    username = args[:username].to_s.nil || (ENV['ARTIFACT_USERNAME'] || 'stn_contoller-ci')
+    password = args[:password].to_s.nil || (ENV['ARTIFACT_PASSWORD'] || 'stn_contoller-ci*123')
 
     STN::package(branch, version, username, password).exit
   end
