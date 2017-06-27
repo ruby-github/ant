@@ -115,7 +115,7 @@ module STN
     end
   end
 
-  def package branch = nil, version = nil, username = nil, password = nil
+  def package branch = nil, version = nil, http = nil, username = nil, password = nil
     branch ||= 'master'
 
     LOG_HEAD '开始版本打包(%s:%s) ...' % [branch, version]
@@ -154,7 +154,7 @@ module STN
 
     if not username.nil? and not password.nil?
       [
-        'jfrog rt config --url=http://artifacts.zte.com.cn/artifactory --interactive=false --user=%s --password=%s' % [username, password],
+        'jfrog rt config --interactive=false --url=%s --user=%s --password=%s' % [http, username, password],
         'jfrog rt u %s stn_contoller-generic-local/stn_daily/' % File.join(zipfile_home, '*.zip')
       ].each do |cmdline|
         if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
@@ -234,12 +234,13 @@ namespace :stn do
     STN::compile(name, branch, dirname, cmdline, force, _retry).exit
   end
 
-  task :package, [:branch, :version, :username, :password] do |t, args|
+  task :package, [:branch, :version, :http, :username, :password] do |t, args|
     branch = args[:branch].to_s.nil
     version = args[:version].to_s.nil
+    http = args[:http].to_s.nil || (ENV['ARTIFACT_HTTP'] || 'http://artifacts.zte.com.cn/artifactory')
     username = args[:username].to_s.nil || (ENV['ARTIFACT_USERNAME'] || 'stn_contoller-ci')
     password = args[:password].to_s.nil || (ENV['ARTIFACT_PASSWORD'] || 'stn_contoller-ci*123')
 
-    STN::package(branch, version, username, password).exit
+    STN::package(branch, version, http, username, password).exit
   end
 end
