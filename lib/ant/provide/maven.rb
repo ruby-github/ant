@@ -435,7 +435,11 @@ module Provide
           when /\[exec\].*error/
             @ignore = false
           when /\:.*error/
-            @ignore = false
+            if line.include? 'following dependencies:'
+              @ignore = true
+            else
+              @ignore = false
+            end
           else
             @ignore = true
           end

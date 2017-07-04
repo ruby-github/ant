@@ -168,7 +168,7 @@ module STN
             return false
           end
 
-          cmdline = 'jfrog rt u %s %s --flat=false' % [File.basename(path), File.join('stn_contoller-generic-local', to_path)]
+          cmdline = 'jfrog rt u %s/ %s/' % [File.basename(path), to_path]
 
           if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
               puts line
@@ -186,12 +186,12 @@ module STN
       end
     end
 
-    def download path, to_path, http = nil, username = nil, password = nil
+    def copy path, to_path, http = nil, username = nil, password = nil
       if not config http, username, password
         return false
       end
 
-      cmdline = 'jfrog rt dl %s %s --flat=false' % [File.join('stn_contoller-generic-local', path), to_path]
+      cmdline = 'jfrog rt cp %s/ %s/' % [path, to_path]
 
       if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
           puts line
@@ -209,23 +209,23 @@ module STN
 
     def install branch = nil, version = nil, nfm_version = nil, http = nil, username = nil, password = nil
       branch ||= 'master'
-      installation = '/tmp/installation'
 
       if version.nil?
-        version = 'daily_%s_%s' % [branch.downcase, Time.timestamp_day]
-        upload_path = File.join 'daily', version
+        version = 'daily_%s_%s' % [branch.downcase, Time.now.timestamp_day]
+        upload_path = File.join 'snapshot', version
       else
         version = version.upcase.gsub ' ', ''
-        upload_path = File.join 'release', version
-      end
-
-      if not download_nfm nfm_version, installation, http, username, password
-        return false
+        upload_path = File.join 'alpha', version
       end
 
       map = installdisk File.join(branch, 'sdn_installation/installdisk/installdisk.xml')
+      installation = '/tmp/installation'
 
       if not zip map, installation, version
+        return false
+      end
+
+      if not upload_nfm nfm_version, upload_path, http, username, password
         return false
       end
 
@@ -236,16 +236,11 @@ module STN
       true
     end
 
-    def download_nfm path = nil, to_path = nil, http = nil, username = nil, password = nil
-      path ||= 'default'
-      to_path ||= '/tmp/installation'
-
-      Artifact::download File.join('nfm', path), to_path, http, username, password
+    def upload_nfm path = nil, to_path = nil, http = nil, username = nil, password = nil
+      Artifact::copy File.join('release/nfm', path || 'default'), to_path, http, username, password
     end
 
     def upload path, to_path, http = nil, username = nil, password = nil
-      path ||= '/tmp/installation'
-
       Artifact::upload path, to_path, http, username, password
     end
 
@@ -346,6 +341,10 @@ module STN
     def zip map, installation, version
       if map.nil?
         return false
+      end
+
+      if File.directory? installation
+        File.delete installation
       end
 
       map.each do |package, dirname_info|

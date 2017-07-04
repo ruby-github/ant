@@ -160,7 +160,13 @@ class File
   end
 
   def self.paths filename
-    filename.locale.split /[\/\\]/
+    paths = filename.locale.split /[\/\\]/
+
+    if paths.first == ''
+      paths[0] = '/'
+    end
+
+    paths
   end
 
   def self.pattern_split xpath
