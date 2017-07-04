@@ -163,6 +163,40 @@ class File
     filename.locale.split /[\/\\]/
   end
 
+  def self.pattern_split xpath
+    xpath = File.normalize xpath
+
+    if not File.exist? xpath
+      if xpath =~ /\*|\?|\[.+\]|\{.+\}/
+        dir = $`
+
+        if dir.empty?
+          dir = '.'
+        else
+          if dir.end_with? '/'
+            dir.chop!
+          else
+            dir = File.dirname dir
+          end
+
+          xpath = xpath[dir.size + 1..-1]
+        end
+
+        [
+          dir, xpath
+        ]
+      else
+        [
+          nil, xpath
+        ]
+      end
+    else
+      [
+        nil, xpath
+      ]
+    end
+  end
+
   def self.root filename
     filename = File.expand_path filename
 
