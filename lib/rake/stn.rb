@@ -218,7 +218,7 @@ module STN
         upload_path = File.join 'alpha', version
       end
 
-      map = installdisk File.join(branch, 'sdn_installation/installdisk/installdisk.xml')
+      map = installdisk File.join(branch, 'installation')
       installation = '/tmp/installation'
 
       if not zip map, installation, version
@@ -244,13 +244,13 @@ module STN
       Artifact::upload path, to_path, http, username, password
     end
 
-    def installdisk file
+    def installdisk home
       map = {}
 
-      if File.file? file
-        Dir.chdir File.dirname(file) do
+      if File.directory? home
+        Dir.chdir home do
           begin
-            doc = REXML::Document.file File.basename(file)
+            doc = REXML::Document.file 'installdisk/installdisk.xml'
           rescue
             LOG_EXCEPTION $!
 
@@ -265,6 +265,8 @@ module STN
               next
             end
 
+            dirname = convert dirname
+
             if File.directory? dirname
               Dir.chdir dirname do
                 list = []
@@ -278,18 +280,26 @@ module STN
 
                   file_dirname, filename = File.pattern_split path
 
-                  if file_dirname.nil? or file_dirname == '.'
+                  if file_dirname.nil?
                     list << filename
 
                     if File.directory? filename
                       list += File.glob File.join(filename, '**/*')
                     end
                   else
-                    list << File.join(file_dirname, filename)
-
-                    if File.directory? File.join(file_dirname, filename)
-                      list += File.glob File.join(file_dirname, filename, '**/*')
+                    if filename == '*'
+                      filename = '**/*'
                     end
+
+                    if file_dirname == '.'
+                      xpath = filename
+                    else
+                      xpath = File.join file_dirname, filename
+
+                      list << file_dirname
+                    end
+
+                    list += File.glob xpath
                   end
                 end
 
@@ -302,18 +312,26 @@ module STN
 
                   file_dirname, filename = File.pattern_split path
 
-                  if file_dirname.nil? or file_dirname == '.'
+                  if file_dirname.nil?
                     list.delete filename
 
                     if File.directory? filename
                       list -= File.glob File.join(filename, '**/*')
                     end
                   else
-                    list.delete File.join(file_dirname, filename)
-
-                    if File.directory? File.join(file_dirname, filename)
-                      list -= File.glob File.join(file_dirname, filename, '**/*')
+                    if filename == '*'
+                      filename = '**/*'
                     end
+
+                    if file_dirname == '.'
+                      xpath = filename
+                    else
+                      xpath = File.join file_dirname, filename
+
+                      list.delete file_dirname
+                    end
+
+                    list -= File.glob xpath
                   end
                 end
 
@@ -370,8 +388,6 @@ module STN
               end
             end
           end
-
-          return false
         end
 
         if not zipfile.save
@@ -407,6 +423,25 @@ module STN
       else
         file
       end
+    end
+
+    def convert dirname
+      dirname.gsub! '\\', '/'
+      dirname.gsub! '/trunk/', '/'
+
+      if dirname =~ /^\.\.\/\.\.\//
+        dirname = File.join '..', $'
+      end
+
+      dirname.gsub! '/sdn_interface/', '/interface/'
+      dirname.gsub! '/sdn_framework/', '/framework/'
+      dirname.gsub! '/sdn_application/', '/application/'
+      dirname.gsub! '/sdn_tunnel/', '/tunnel/'
+      dirname.gsub! '/sdn_installation/', '/installation/'
+      dirname.gsub! '/SPTN-E2E/', '/e2e/'
+      dirname.gsub! '/CTR-ICT/', '/ict/'
+
+      dirname
     end
   end
 end
