@@ -131,13 +131,13 @@ module STN
 
     {
       'u3_interface'=> File.join(http_svn, 'Interface'),
-      'interface'   => File.join(http_git, 'sdn_interface'),
-      'framework'   => File.join(http_git, 'sdn_framework'),
-      'application' => File.join(http_git, 'sdn_application'),
-      'tunnel'      => File.join(http_git, 'sdn_tunnel'),
-      'e2e'         => File.join(http_git, 'SPTN-E2E'),
-      'ict'         => File.join(http_git, 'CTR-ICT'),
-      'installation'=> File.join(http_git, 'sdn_installation')
+      'sdn_interface'   => File.join(http_git, 'sdn_interface'),
+      'sdn_framework'   => File.join(http_git, 'sdn_framework'),
+      'sdn_application' => File.join(http_git, 'sdn_application'),
+      'sdn_tunnel'      => File.join(http_git, 'sdn_tunnel'),
+      'sdn_e2e'         => File.join(http_git, 'SPTN-E2E'),
+      'sdn_ict'         => File.join(http_git, 'CTR-ICT'),
+      'sdn_installation'=> File.join(http_git, 'sdn_installation')
     }
   end
 
@@ -218,7 +218,7 @@ module STN
         upload_path = File.join 'alpha', version
       end
 
-      map = installdisk File.join(branch, 'installation')
+      map = installdisk File.join(branch, 'sdn_installation')
       installation = '/tmp/installation'
 
       if not zip map, installation, version
@@ -433,13 +433,8 @@ module STN
         dirname = File.join '..', $'
       end
 
-      dirname.gsub! '/sdn_interface/', '/interface/'
-      dirname.gsub! '/sdn_framework/', '/framework/'
-      dirname.gsub! '/sdn_application/', '/application/'
-      dirname.gsub! '/sdn_tunnel/', '/tunnel/'
-      dirname.gsub! '/sdn_installation/', '/installation/'
-      dirname.gsub! '/SPTN-E2E/', '/e2e/'
-      dirname.gsub! '/CTR-ICT/', '/ict/'
+      dirname.gsub! '/SPTN-E2E/', '/sdn_e2e/'
+      dirname.gsub! '/CTR-ICT/', '/sdn_ict/'
 
       dirname
     end
@@ -459,12 +454,12 @@ namespace :stn do
     status = true
 
     if update
-      if not STN::update 'interface', branch
+      if not STN::update 'sdn_interface', branch
         status = false
       end
     end
 
-    if not STN::compile 'interface', branch, 'pom', nil, true, false
+    if not STN::compile 'sdn_interface', branch, 'pom', nil, true, false
       status = false
     end
 
