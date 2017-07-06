@@ -145,7 +145,7 @@ module STN
     module_function
 
     def config http = nil, username = nil, password = nil
-      http ||= ENV['ARTIFACT_HTTP'] || 'http://artifacts.zte.com.cn/artifactory'
+      http ||= ENV['ARTIFACT_HTTP'] || 'http://sz.artifactory.zte.com.cn/artifactory'
       username ||= ENV['ARTIFACT_USERNAME'] || 'stn_contoller-ci'
       password ||= ENV['ARTIFACT_PASSWORD'] || 'stn_contoller-ci*123'
 
@@ -161,20 +161,64 @@ module STN
       return true
     end
 
+    def download path, to_path, http = nil, username = nil, password = nil
+      if not config http, username, password
+        return false
+      end
+
+      tmpdir = File.join '/tmp', File.tmpname
+      cmdline = 'jfrog rt download --flat=false %s/ %s/' % [path, tmpdir]
+
+      if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
+          puts line
+        end
+
+        return false
+      end
+
+      begin
+        FileUtils::move File.join(tmpdir, File.paths(path)[1..-1]), to_path
+
+        true
+      rescue
+        LOG_EXCEPTION $!
+
+        false
+      ensure
+        File.delete tmpdir
+      end
+    end
+
     def upload path, to_path, http = nil, username = nil, password = nil
       if File.directory? path
-        Dir.chdir File.dirname(path) do
+        Dir.chdir path do
           if not config http, username, password
             return false
           end
 
-          cmdline = 'jfrog rt u %s/ %s/' % [File.basename(path), to_path]
-
-          if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
-              puts line
+          File.glob('*').each do |name|
+            if File.directory? name
+              name += '/'
             end
 
-            return false
+            cmdline = 'jfrog rt upload --flat=false %s %s/' % [name, to_path]
+
+            success = false
+
+            3.times do
+              if Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
+                  puts line
+                end
+
+                success = true
+
+                break
+              end
+            end
+
+            if not success
+              return false
+            end
           end
 
           true
@@ -191,7 +235,7 @@ module STN
         return false
       end
 
-      cmdline = 'jfrog rt cp %s/ %s/' % [path, to_path]
+      cmdline = 'jfrog rt copy --flat=false %s/ %s/' % [path, to_path]
 
       if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
           puts line
@@ -212,20 +256,25 @@ module STN
 
       if version.nil?
         version = 'daily_%s_%s' % [branch.downcase, Time.now.timestamp_day]
-        upload_path = File.join 'snapshot', version
+        upload_path = File.join 'stn_contoller-snapshot-generic/daily', version
       else
         version = version.upcase.gsub ' ', ''
-        upload_path = File.join 'alpha', version
+        upload_path = File.join 'stn_contoller-alpha-generic/stn', version
       end
 
-      map = installdisk File.join(branch, 'sdn_installation')
       installation = '/tmp/installation'
 
-      if not zip map, installation, version
+      if File.directory? installation
+        File.delete installation
+      end
+
+      if not download_nfm nfm_version, installation, http, username, password
         return false
       end
 
-      if not upload_nfm nfm_version, upload_path, http, username, password
+      map = installdisk File.join(branch, 'sdn_installation')
+
+      if not zip map, installation, version
         return false
       end
 
@@ -236,8 +285,8 @@ module STN
       true
     end
 
-    def upload_nfm path = nil, to_path = nil, http = nil, username = nil, password = nil
-      Artifact::copy File.join('release/nfm', path || 'default'), to_path, http, username, password
+    def download_nfm path, to_path, http = nil, username = nil, password = nil
+      Artifact::download File.join('stn_contoller-alpha-generic/UEP_ICT', path || 'default'), to_path, http, username, password
     end
 
     def upload path, to_path, http = nil, username = nil, password = nil
@@ -361,9 +410,7 @@ module STN
         return false
       end
 
-      if File.directory? installation
-        File.delete installation
-      end
+      tmpdir = File.join '/tmp', File.tmpname
 
       map.each do |package, dirname_info|
         zipfile = Provide::Zip.new File.join(installation, 'packages', '%s_%s.zip' % [package, version])
@@ -377,7 +424,7 @@ module STN
             Dir.chdir dirname do
               list.each do |file|
                 if File.file? file
-                  if not zipfile.add expandname(file, version), file
+                  if not zipfile.add expandname(file, version, tmpdir), file
                     return false
                   end
                 else
@@ -394,9 +441,13 @@ module STN
           return false
         end
       end
+
+      File.delete tmpdir
+
+      true
     end
 
-    def expandname file, version
+    def expandname file, version, tmpdir
       if ['ppuinfo.xml', 'pmuinfo.xml'].include? File.basename(file).downcase
         if not file.include? '/procs/ppus/uca.ppu'
           begin
@@ -407,7 +458,7 @@ module STN
               e.attributes['display-version'] = version.to_s
             end
 
-            filename = File.join '/tmp/xml', File.tmpname, File.basename(file)
+            filename = File.join tmpdir, File.tmpname, File.basename(file)
 
             doc.to_file filename
 
