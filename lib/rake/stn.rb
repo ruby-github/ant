@@ -271,6 +271,23 @@ module STN
 
       true
     end
+
+    def delete path, http = nil, username = nil, password = nil
+      if not config http, username, password
+        return false
+      end
+
+      cmdline = 'jfrog rt delete --quiet=true %s' % path
+
+      if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
+          puts line
+        end
+
+        return false
+      end
+
+      true
+    end
   end
 
   module Install
@@ -300,10 +317,14 @@ module STN
       end
 
       if not upload installation, upload_path, http, username, password
+        Artifact::delete upload_path
+
         return false
       end
 
       if not copy_nfm nfm_version, upload_path, http, username, password
+        Artifact::delete upload_path
+
         return false
       end
 
