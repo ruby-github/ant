@@ -230,18 +230,43 @@ module STN
       end
     end
 
-    def copy path, to_path, http = nil, username = nil, password = nil
+    def search path, http = nil, username = nil, password = nil
       if not config http, username, password
         return false
       end
 
-      cmdline = 'jfrog rt copy --flat=false %s/ %s/' % [path, to_path]
+      paths = []
+
+      cmdline = 'jfrog rt search %s/' % path
 
       if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
-          puts line
+          if line.strip =~ /^"path":\s*"(.*)"$/
+            paths << $1.gsub(path + '/', '')
+          end
         end
 
+        return nil
+      end
+
+      paths
+    end
+
+    def copy path, to_path, http = nil, username = nil, password = nil
+      paths = search path, http, username, password
+
+      if paths.nil?
         return false
+      end
+
+      paths.each do |file|
+        cmdline = 'jfrog rt copy --flat=true %s %s' % [File.join(path, file), File.join(to_path, file)]
+
+        if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
+            puts line
+          end
+
+          return false
+        end
       end
 
       true
@@ -268,10 +293,6 @@ module STN
         File.delete installation
       end
 
-      if not download_nfm nfm_version, installation, http, username, password
-        return false
-      end
-
       map = installdisk File.join(branch, 'sdn_installation')
 
       if not zip map, installation, version
@@ -282,11 +303,15 @@ module STN
         return false
       end
 
+      if not copy_nfm nfm_version, upload_path, http, username, password
+        return false
+      end
+
       true
     end
 
-    def download_nfm path, to_path, http = nil, username = nil, password = nil
-      Artifact::download File.join('stn_contoller-alpha-generic/UEP_ICT', path || 'default'), to_path, http, username, password
+    def copy_nfm nfm_version, to_path, http = nil, username = nil, password = nil
+      Artifact::copy File.join('stn_contoller-alpha-generic/UEP_ICT', nfm_version || 'default'), to_path, http, username, password
     end
 
     def upload path, to_path, http = nil, username = nil, password = nil
