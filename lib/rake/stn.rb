@@ -145,7 +145,7 @@ module STN
     module_function
 
     def config http = nil, username = nil, password = nil
-      http ||= ENV['ARTIFACT_HTTP'] || 'http://sz.artifactory.zte.com.cn/artifactory'
+      http ||= ENV['ARTIFACT_HTTP'] || 'http://10.31.126.100/artifactory'
       username ||= ENV['ARTIFACT_USERNAME'] || 'stn_contoller-ci'
       password ||= ENV['ARTIFACT_PASSWORD'] || 'stn_contoller-ci*123'
 
@@ -203,20 +203,10 @@ module STN
 
             cmdline = 'jfrog rt upload --flat=false %s %s/' % [name, to_path]
 
-            success = false
-
-            3.times do
-              if Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
-                  puts line
-                end
-
-                success = true
-
-                break
+            if not Provide::CommandLine::cmdline cmdline do |line, stdin, wait_thr|
+                puts line
               end
-            end
 
-            if not success
               return false
             end
           end
